@@ -206,7 +206,7 @@ Add a new paragraph after \eelis{lex.name#1}, add \tcode{$} to \grammarterm{nond
     n o p q r s t u v w x y z
     A B C D E F G H I J K L M
     N O P Q R S T U V W X Y Z 
-    _ \ins{$\sub(class=opt){opt}}
+    _ \ins{$}
 
 \grammarterm{digit}: one of
     0 1 2 3 4 5 6 7 8 9
@@ -245,7 +245,7 @@ The identifiers in Table 4 have a special meaning when appearing in a certain co
 }
 \h2{Acknowledgements}
 
-Thanks to Jan Schultke for the markup language and document generator used for this paper.
+Thanks to Jan Schultke for the markup language and document generator used for this paper and thanks to all the awesome people who gave feedback on this proposal.
 
 \hr
 \h2{References}
