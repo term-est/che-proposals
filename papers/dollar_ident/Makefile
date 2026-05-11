@@ -1,1 +1,1 @@
-include ../../wg21/Makefile
+cowel run draft.cow generated/draft.html
