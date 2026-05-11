@@ -1,0 +1,271 @@
+\: cowel 0.8.1
+\cowel_include("../../ext/libwg21.cow")
+
+\wg21_head(
+  title = {\tcode{$identifiers}}
+){
+\dl{
+  \dt{Document number:} \dd{\docnum{Dxxxx}}
+  \dt{Date:}            \dd{\tt{2026-04-26}}
+  \dt{Audience:}        \dd{SG22} \dd{EWG}
+  \dt{Project:}         \dd{ISO/IEC 14882 Programming Languages — C++, ISO/IEC JTC1/SC22/WG21}
+  \dt{Reply-to:}        \dd{Matthias Wippich <\mail{mfwippich@gmail.com}>}
+}
+\hr
+}
+
+\Babstract{
+This paper proposes making "$" in identifiers conditionally-supported to align with C23.
+}
+
+\h2(listed=false){Revision history}
+
+\h3{R0 April 2026}
+
+Original version of the paper.
+
+\h2{Introduction}
+
+One of the most popular extensions to C++ is allowing $ in identifiers. For example, this is supported by \ref("https://learn.microsoft.com/en-us/cpp/cpp/identifiers-cpp?view=msvc-170#:~:text=The%20dollar%20sign%20%24%20is%20a%20valid%20identifier%20character%20in%20the%20Microsoft%20C%2B%2B%20compiler%20%28MSVC%29%2E"){MSVC}, \ref("https://gcc.gnu.org/onlinedocs/gcc/Dollar-Signs.html"){GCC}, Clang, EDG (might need opt-in), icx and nvc++ (see \ref("https://compiler-explorer.com/z/bxKEMx54o"){Compiler Explorer}).
+
+In recent years, C has made quite a few changes to what they consider an identifier. The original rules allowed any implementation-defined characters, the revised ones did not. To address this, \ref("WG14 N3145") introduced a carve-out to allow $ anywhere in identifiers as an implementation extension.
+
+\ref("WG14 N3145") mentions that during discussion it was noted that allowing $ in identifiers is a massive syntactic land-grab. However, due to the popularity of this extension, it seems unrealistic that we can ever use $ for anything that would conflict with $identifiers.
+
+\h2{Why not allow it unconditionally?}
+
+GCC notes in its \ref("https://gcc.gnu.org/onlinedocs/gcc/Dollar-Signs.html"){documentation}:
+
+\Bquote{
+However, dollar signs in identifiers are not supported on a few target machines, typically because the target assembler does not allow them.
+}
+
+Examples of such targets are \ref("https://github.com/gcc-mirror/gcc/blob/master/gcc/config/rs6000/xcoff.h#L57"){RS/6000}, \ref("https://github.com/gcc-mirror/gcc/blob/master/gcc/config/avr/avr.h#L480"){AVR}, and \ref("https://github.com/gcc-mirror/gcc/blob/master/gcc/config/mmix/mmix.h#L792"){MMIX}.
+
+In theory, we could mandate $ to be valid in identifiers and ask compilers to work around such problematic targets in some way or another. However, that's a rather big ask -  it seems more sensible to instead align the C++ standard with implementation reality and C23.
+
+\h2{Motivation}
+
+Aside from aligning with C, there are a few more motivating uses.
+
+\h3{Linker-defined symbols}
+
+Some linkers emit linker-defined symbols with dollars in their identifiers.
+
+One such example is armlink from the \ref("https://developer.arm.com/documentation/dui0803/f/Accessing-and-Managing-Symbols-with-armlink/Linker-defined-symbols"){ARM MDK toolchain}:
+
+\Bquote{
+Symbols that contain the character sequence $$, and all other external names containing the sequence $$, are names reserved by ARM.
+}
+
+Unfortunately the examples given in armlink's documentation are not valid C++.
+
+\codeblock(cpp){
+// oops, none of these are valid identifiers
+extern int Image$$ER_ZI$$Base;
+extern int Image$$ER_ZI$$Limit;
+extern int Image$$ER_RO$$Base;
+extern int Image$$ER_RO$$Limit;
+extern int Image$$ER_RW$$Base;
+extern int Image$$ER_RW$$Limit;
+}
+
+With GCC and Clang this can also be addressed by explicitly specifying the name used in assembler code (\ref("https://compiler-explorer.com/z/WE8TzTsav"){Compiler Explorer})
+
+\codeblock(cpp){
+extern int Image_ER_ZI_Base  asm("Image$$ER_ZI$$Base");
+extern int Image_ER_ZI_Limit asm("Image$$ER_ZI$$Limit");
+extern int Image_ER_RO_Base  asm("Image$$ER_RO$$Base");
+extern int Image_ER_RO_Limit asm("Image$$ER_RW$$Limit");
+extern int Image_ER_RW_Base  asm("Image$$ER_RW$$Base");
+extern int Image_ER_RW_Limit asm("Image$$ER_RW$$Limit");
+}
+
+However, it seems much cleaner and overall less error-prone (did you notice the typo?) to avoid repetition and instead actually allow such implementations to support dollars in identifiers directly.
+
+
+Likewise, if you target RISC-V you may have come across \tcode{__global_pointer$} before. The same argument as before applies, however it will still result in a reserved identifier due to the double underscore.
+
+\h3{Macros}
+
+Another somewhat common use is in macro identifiers. \ref("https://github.com/search?q=%22%23define+%24%22+language%3AC%2B%2B&type=code"){GitHub search} finds more than 5600 uses in code recognized as C++.
+
+For example consider
+
+\codeblock(cpp){
+#if MSVC
+#   define $inline_never  __declspec(noinline)
+#   define $inline_always __forceinline
+#else
+#   define $inline_never  [[gnu::noinline]]
+#   define $inline_always [[gnu::always_inline]] inline
+#endif
+
+#define $inline(_opt)     $inline_##_opt
+#define $template         template for (auto _ : "")
+#define $pi               3
+#define $assert(...)                                                        \\
+    do {                                                                    \\
+        ((__VA_ARGS__) ? (void)0 : throw std::runtime_error(#__VA_ARGS__)); \\
+    } while (false)
+
+$inline(always) int foo(int a) {
+    $assert(a > 0);
+    return a * $pi;
+}
+
+$inline(never) int bar(int, char) {
+    $template {
+        constexpr auto ctx = std::meta::current_function();
+        static constexpr auto [... Idx] = std::make_index_sequence<parameters_of(ctx).size()>{};
+        return (foo([:variable_of(parameters_of(ctx)[Idx]):]) + ... + 0);
+    }
+}
+}
+
+As noted earlier, using $ in any identifiers that survive until the assembler takes over can be problematic with some targets. Since macros are long gone at that point, using dollars in macros is relatively safe. This essentially gives us another identifier namespace that is visually distinct from regular identifiers.
+
+If used consistently only for macros, this has the benefit of making them visually stand out. We can validate consistent use easily by using a custom clang-tidy check (see \ref("https://github.com/tsche/dollar-macro-check"){example implementation}).
+
+Not only does this reduce the chances of name collisions, it also helps when surveying code - after all, macros come with sharp edges.
+
+\h3{Generated code}
+In a similar fashion, dollars in identifiers can be useful for generated code.
+
+While there has always been C++ code generators, with the recent adoption of \ref(P2996) and its limited reification features such as \tcode{define_aggregate}, there is an ever increasing need for ways to avoid name collisions stemming from generated/reified code. 
+
+As a result of that, it's more than likely that we'll continue to see all sorts of creative mangling/uglification schemes - (conditionally) allowing the use of \tcode{$} provides a viable alternative.
+
+For example, consider a simple struct to struct of arrays transformation (adopted from the struct to struct of arrays example in \ref(P2996)):
+\codeblock(cpp){
+template <typename T, size_t N>
+struct struct_of_arrays_impl {
+  struct impl;
+
+  consteval {
+    auto ctx = std::meta::access_context::current();
+    for (std::meta::info member : nonstatic_data_members_of(^^T, std::meta::access_context::unprivileged())) {
+        auto array_type = substitute(^^std::array, {type_of(member), std::meta::reflect_constant(N)});
+        auto mem_descr = data_member_spec(array_type, {.name = identifier_of(member)});
+        new_members.push_back(mem_descr);
+    }
+
+    define_aggregate(^^impl, new_members);
+  }
+};
+
+template <typename T, size_t N>
+using struct_of_arrays = struct_of_arrays_impl<T, N>::impl;
+}
+
+If we, for some reason, attempt to inherit from this generated type, we might run into collisions.
+\codeblock(cpp){
+struct Particle {
+    vec3 position;
+    vec3 velocity;
+    float lifetime;
+};
+
+template <size_t N>
+struct Particles : struct_of_arrays<Particle, N> {
+    vec3 position(size_t i) const;  // oops, collides with generated position member
+    vec3 velocity(size_t i) const;  // also collides
+    float lifetime(size_t i) const; // also collides
+};
+}
+
+While this is arguably a naming issue (that could and probably should be \tcode{get_position} instead), these sorts of problems can generally be avoided by uglifying identifiers in generated code. Conditionally allowing dollars gives users a few more options to make those generated names more unique and less likely to collide with user code.
+
+\h2{Wording}
+
+Make the following changes to the C++ Working Draft. All wording is relative
+to \ref(N5032), the latest draft at the time of writing.
+
+\h3(show_number=false){[lex.name] Identifiers}
+
+Add a new paragraph after \eelis{lex.name#1}, add \tcode{$} to \grammarterm{nondigit} with optional remark.
+\Bquote{
+\cowel_html_element(h2){Identifiers \stable_ref{lex.name}}
+
+\pre{
+\grammarterm{identifier}:
+    \grammarterm{identifier-start}
+    \grammarterm{identifier} \grammarterm{identifier-continue}
+
+\grammarterm{identifier-start}:
+    \grammarterm{nondigit}
+    an element of the translation character set with the Unicode property XID_Start
+
+\grammarterm{identifier-continue}:
+    \grammarterm{digit}
+    \grammarterm{nondigit}
+    an element of the translation character set with the Unicode property XID_Continue
+
+\grammarterm{nondigit}: one of
+    a b c d e f g h i j k l m
+    n o p q r s t u v w x y z
+    A B C D E F G H I J K L M
+    N O P Q R S T U V W X Y Z 
+    _ \ins{$\sub(class=opt){opt}}
+
+\grammarterm{digit}: one of
+    0 1 2 3 4 5 6 7 8 9
+}
+
+\note{
+The character properties XID_Start and XID_Continue are described by UAX #44 of the Unicode Standard.
+}
+
+\pnum
+The program is ill-formed if an \grammarterm{identifier} does not conform to Normalization Form C as specified in the Unicode Standard.
+
+\note{
+Identifiers are case-sensitive.
+}
+
+\note{
+[uaxid] compares the requirements of UAX #31 of the Unicode Standard with the C++ rules for identifiers.
+}
+
+\note{
+In translation phase 4, \grammarterm{identifier} also includes those preprocessing-tokens (\eelis{lex.pptoken}) differentiated as keywords (\eelis{lex.key}) in the later translation phase 7 (\eelis{lex.token}).
+}
+
+\Bins{
+\pnum
+The inclusion of $ in \grammarterm{nondigit} is conditionally-supported.
+
+\note{
+Use of $ anywhere in an identifier is allowed if the implementation supports it.
+}
+}
+\pnum
+The identifiers in Table 4 have a special meaning when appearing in a certain context. [...]
+
+}
+\h2{Acknowledgements}
+
+Thanks to Jan Schultke for the markup language and document generator used for this paper.
+
+\hr
+\h2{References}
+
+\bib(
+  id = "N5032",
+  title = "Working Draft Programming Languages — C++",
+  date = "2025-12-15",
+  author = "Thomas Köppe",
+  link = "https://wg21.link/n5032",
+  long_link = "https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/n5032.pdf",
+)\
+\bib(
+  id = "WG14 N3145",
+  title = "$ in Identifiers v2",
+  link = "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3145.pdf",
+)\
+\bib(
+  id = "P2996",
+  title = "Reflection for C++26",
+  link = "https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p2996r13.html",
+)\
+\make_bib

@@ -1,0 +1,12 @@
+{
+  "name": "C++ Proposals - cowel",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+      ]
+    }
+  }
+}
