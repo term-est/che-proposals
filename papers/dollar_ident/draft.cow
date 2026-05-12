@@ -6,10 +6,11 @@
 ){
 \dl{
   \dt{Document number:} \dd{\docnum{Dxxxx}}
-  \dt{Date:}            \dd{\tt{2026-04-26}}
+  \dt{Date:}            \dd{\tt{2026-05-12}}
   \dt{Audience:}        \dd{SG22} \dd{EWG}
   \dt{Project:}         \dd{ISO/IEC 14882 Programming Languages — C++, ISO/IEC JTC1/SC22/WG21}
   \dt{Reply-to:}        \dd{Matthias Wippich <\mail{mfwippich@gmail.com}>}
+  \dt{Co-authors:}      \dd{Murat Can Çağrı <\mail{cancagri.dev@gmail.com}>}
 }
 \hr
 }
