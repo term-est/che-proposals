@@ -16,7 +16,7 @@
 }
 
 \Babstract{
-This paper proposes making \tcode{$} in identifiers conditionally-supported or supported.
+This paper proposes that C++ explicitly acknowledge \tcode{$} in identifiers. The authors recommend allowing \tcode{$} in identifiers unconditionally and also present conditionally-supported alternatives.
 }
 
 \make_contents
@@ -29,7 +29,7 @@ This paper proposes making \tcode{$} in identifiers conditionally-supported or s
 \li{added opt-out usage analysis}
 \li{removed "Why not allow $ in identifiers unconditionally?" section, as it is now covered in "Other approaches"}
 \li{removed wording for option 2, as it is no longer considered}
-\li{incorporated feedback from SG16}
+\li{recorded SG16 polling and updated the authors' recommendation in favor of unconditional support}
 }
 
 \h3{R1 June 2026}
@@ -62,7 +62,7 @@ Straw vote:\br
 lots no
 }
 
-In 1992 it was clarified that supporting use of \tcode{$} in identifiers as a conforming extension is permissable (\ref("X3J11/91-008") page 56).
+In 1992 it was clarified that supporting use of \tcode{$} in identifiers as a conforming extension is permissible (\ref("X3J11/91-008") page 56).
 \Bquote{
 May a standard conforming implementation make characters in its character set that are not in the required source character set identifier characters?
 
@@ -77,7 +77,7 @@ In C++, the situation is slightly different. The C++ standard does not acknowled
 
 \h2{Proposed change}
 
-To align with C and implementation reality, this paper proposes making the use of \tcode{$} in identifiers conditionally-supported or supported. Conditionally-supported would not make \tcode{$} in identifiers portable, but it would at least make them explicitly recognized by the standard when supported by the implementation.
+To align with C and implementation reality, this paper proposes that the C++ standard explicitly acknowledge \tcode{$} in identifiers. The authors recommend unconditional support as described by option 4. Options 1 and 3 are retained as alternative conditionally-supported designs.
 
 \ref("WG14 N3145") mentions that during discussion it was noted that allowing \tcode{$} in identifiers is a massive syntactic land-grab. However, due to the popularity of this extension, it seems unrealistic that we can ever use \tcode{$} for anything that would conflict with \tcode{$identifiers}.
 
@@ -318,7 +318,7 @@ will still be rejected if the implementation cannot support $identifiers, regard
 }
 }
 
-The authors prefer option 3 over options 1 and 2, as it is the least user-hostile option. Unlike the other options, this gets us consistent preprocessing behavior independent of the target's capabilities rather than a silent change in meaning or a hard error. This also simplifies tooling such as syntax highlighters greatly as they no longer have to be aware of target capabilities in order to tokenize correctly.
+Among the conditional approaches, the authors prefer option 3 over options 1 and 2, as it is the least user-hostile option. Unlike the other options, this gets us consistent preprocessing behavior independent of the target's capabilities rather than a silent change in meaning or a hard error. This also simplifies tooling such as syntax highlighters greatly as they no longer have to be aware of target capabilities in order to tokenize correctly.
 
 An implementation attempt for option 3 can be found at \ref("https://github.com/llvm/llvm-project/pull/200614"){Clang PR #200614}.
 
@@ -365,7 +365,7 @@ This essentially changes the choice of whether the opt-out or the opt-in is the 
   \td{❌}}
 }
 
-Since almost all compilers support \tcode{$} in identifiers in C++ mode by default, this would imply next to no changes to implementations if they wish to remain conforming. Due to the ubiquity of this extension, this approach would also match user expectations most closely. Therefore, the authors support this option over all other considered ones.
+Since almost all compilers support \tcode{$} in identifiers in C++ mode by default, this would imply next to no changes to implementations if they wish to remain conforming. Due to the ubiquity of this extension, this approach would also match user expectations most closely. For these reasons, and based on the SG16 review described below, the authors support this option over all other considered options.
 
 \h2{Implementation status}
 In the following table "opt-out behavior" refers to the preprocessing result of a program
@@ -432,23 +432,34 @@ with support for dollars in identifiers disabled (explicitly or implicitly).
 With all tested compilers except for NVC++ (which does not seem to have an opt-out), the observed behavior when opting out matches wording option 1. An overview can be found on \ref("https://godbolt.org/z/99sbb7hrT"){Compiler Explorer}.
 
 \h2{Opt-out usage}
-Since most compilers support \tcode{$} in identifiers by default, we should see lots of use of the opt-out if this extension causes problems for users. However, GitHub code search does not verify this.
 
-A search for \tcode{-fno-dollars-in-identifiers} in CMake files yields \ref("https://github.com/search?q=-fno-dollars-in-identifiers+language%3Acmake&type=code"){only 26 results} at the time of writing. This includes mostly old forks of eclipse-omr and eclipse-openj9. Both projects have since removed the opt-out upstream (\ref("https://github.com/eclipse-openj9/openj9/commit/629dc649f288e836552f0c154f2c3c42465076b2"){OpenJ9} and \ref("https://github.com/eclipse-omr/omr/commit/669724355dc2cd311a6e2ac600b020685e01b76d"){OMR}), because it apparently \ref("https://github.com/phracker/MacOSX-SDKs/blob/041600eda65c6a668f66cb7d56b7d1da3e8bcc93/MacOSX10.9.sdk/usr/include/c%2B%2B/4.2.1/bits/os_defines.h#L85"){caused issues} as both commits note:
-\Bquote{
-Apple patches libstdc++v3 with additional support for dtrace. These
-dtrace symbols use dollar signs identifiers, and are incompatible with
-the compile option -fno-dollars-in-identifiers.
+To look for evidence of users that depend on the opt-out behavior, we searched public GitHub code for compiler options that disable \tcode{$} in identifiers. Such searches cannot establish that no other users exist, and the results include forks and copied build infrastructure, but they provide some indication of publicly visible use.
+
+A search for \tcode{-fno-dollars-in-identifiers} in CMake files yields \ref("https://github.com/search?q=-fno-dollars-in-identifiers+language%3Acmake&type=code"){only 26 results} at the time of writing. This includes mostly old forks of eclipse-omr and eclipse-openj9.
+
+\ref("https://github.com/eclipse-openj9/openj9/commit/629dc649f288e836552f0c154f2c3c42465076b2"){OpenJ9} and \ref("https://github.com/eclipse-omr/omr/commit/669724355dc2cd311a6e2ac600b020685e01b76d"){OMR} later removed the opt-out. The removal commits attribute this to Apple's patched libstdc++v3 headers.
+
+In particular, \ref("https://github.com/apple-oss-distributions/libstdcxx/blob/dad66dd62ed2aa2162c2c53778ff94336f49db95/include/c%2B%2B/4.2.1/bits/os_defines.h#L53-L97"){\tcode{bits/os_defines.h}} contains declarations such as:
+
+\codeblock("cpp"){
+extern void
+__dtrace_probe$cxa_runtime$cxa_exception_rethrow$v1(void);
+
+extern void
+__dtrace_probe$cxa_runtime$cxa_exception_throw$v1$766f6964202a(void *);
 }
 
-\br
+These declarations are incompatible with \tcode{-fno-dollars-in-identifiers}.
 
-A search for \tcode{-fno-dollars-in-identifiers} in Makefiles yields \ref("https://github.com/search?q=-fno-dollars-in-identifiers+language%3AMakefile+&type=code"){only 187 results} at the time of writing. Aside from numerous old forks of OpenJ9 and OMR, a lot of these results are decompiled games (ie \ref("https://github.com/CLeSeducteur/oot"){CLeSeducteur/oot}, \ref("https://github.com/mzxrules/mm"){mzxrules/mm}, \ref("https://github.com/LLONSIT/Wave-Race-64"){LLONSIT/Wave-Race-64} and \ref("https://github.com/Lrs121/animalforest"){Lrs121/animalforest}). 
+A search for \tcode{-fno-dollars-in-identifiers} in Makefiles yields \ref("https://github.com/search?q=-fno-dollars-in-identifiers+language%3AMakefile&type=code"){only 187 results} at the time of writing. Aside from numerous old forks of OpenJ9 and OMR, many of these results are game decompilation projects, including \ref("https://github.com/CLeSeducteur/oot"){CLeSeducteur/oot}, \ref("https://github.com/mzxrules/mm"){mzxrules/mm}, \ref("https://github.com/LLONSIT/Wave-Race-64"){LLONSIT/Wave-Race-64}, and \ref("https://github.com/Lrs121/animalforest"){Lrs121/animalforest}. These projects appear to share related build infrastructure and should not necessarily be considered independent uses.
 
-It's not entirely clear why whichever decompilation tool was used added those options - none of those projects use \tcode{$} outside of comments and string literals in C or C++ code.
+In the representative projects inspected, no ordinary C or C++ translation unit was found to depend on \tcode{$} being tokenized separately from an adjacent identifier.
 
-They do however assume that \tcode{$} is not a nondigit for assembly preprocessing. While this is a different language mode (\tcode{-x assembler-with-cpp} with clang and gcc), this is a somewhat common thing to rely on. For instance the linux kernel also relies on \tcode{$} not being treated as nondigit for assembly preprocessing (ie \ref("https://github.com/torvalds/linux/blob/58717b2a1365d06c8c64b72aa948541b53fe31eb/arch/x86/platform/pvh/head.S#L73"){arch/x86/platform/pvh/head.S}) but does require \tcode{$} to be valid in identifiers in C mode (ie \ref("https://github.com/torvalds/linux/blob/58717b2a1365d06c8c64b72aa948541b53fe31eb/arch/parisc/kernel/parisc_ksyms.c#L47-L69"){arch/parisc/kernel/parisc_ksyms.c}).
+These projects do, however, rely on constructs such as \tcode{$29} or \tcode{$rva(...)} being tokenized as a standalone \tcode{$} followed by another preprocessing token when preprocessing assembly. This is a distinct language mode, such as \tcode{-x assembler-with-cpp} in GCC and Clang, and is not governed by the C++ identifier grammar.
 
+Reliance on this behavior is not limited to game decompilation projects. For example, the Linux kernel uses \ref("https://github.com/torvalds/linux/blob/58717b2a1365d06c8c64b72aa948541b53fe31eb/arch/x86/platform/pvh/head.S#L73"){\tcode{$rva(1b)}} in preprocessed assembly, where \tcode{$} must remain separate for the \tcode{rva} macro to be expanded. At the same time, the kernel relies on \tcode{$} being valid in identifiers in C mode for declarations such as \ref("https://github.com/torvalds/linux/blob/58717b2a1365d06c8c64b72aa948541b53fe31eb/arch/parisc/kernel/parisc_ksyms.c#L47-L69"){\tcode{$global$}} and \tcode{$$divI}.
+
+The inspected uses therefore provide evidence for preserving assembly-specific preprocessing behavior, but do not demonstrate a need for an opt-out from \tcode{$} identifiers in C++ mode.
 
 
 \h2{Wording}
@@ -614,6 +625,68 @@ Modify \grammarterm{nondigit} in \eelis{lex.name} as follows
     0 1 2 3 4 5 6 7 8 9
 }
 }
+
+\h2{SG16 review}
+
+SG16 reviewed this proposal during teleconferences held on 2026-06-24 and 2026-07-08.
+
+During the first review, SG16 considered the proposed conditionally-supported models. The following polls were taken:
+
+\table{
+\thead{
+  \td{Poll}
+  \td{SF}
+  \td{F}
+  \td{N}
+  \td{A}
+  \td{SA}
+}
+\tr{
+  \td{Option 1: \tcode{$} is conditionally a
+      \grammarterm{nondigit}}
+  \td{1}
+  \td{1}
+  \td{0}
+  \td{3}
+  \td{4}
+}
+\tr{
+  \td{Option 3: conversion to an identifier token is
+      conditionally-supported}
+  \td{3}
+  \td{5}
+  \td{0}
+  \td{0}
+  \td{1}
+}
+}
+
+The poll demonstrated strong consensus in favor of option 3 over option 1. Option 3 preserves consistent preprocessing-token formation regardless of whether the implementation ultimately supports identifiers containing \tcode{$}.
+
+During the second review, SG16 first reached unanimous consent that the C++ standard should acknowledge \tcode{$} in identifiers.
+
+SG16 then considered unconditional support:
+
+\table{
+\thead{
+  \td{Poll}
+  \td{SF}
+  \td{F}
+  \td{N}
+  \td{A}
+  \td{SA}
+}
+\tr{
+  \td{Unconditionally allow \tcode{$} in identifiers}
+  \td{3}
+  \td{2}
+  \td{1}
+  \td{1}
+  \td{0}
+}
+}
+
+Based on this feedback, the authors recommend option 4, which allows \tcode{$} in identifiers unconditionally. If unconditional support is not adopted, the authors continue to prefer option 3 among the conditionally-supported alternatives.
 
 \h2{Acknowledgements}
 
